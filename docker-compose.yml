@@ -1,0 +1,111 @@
+version: "3.8"
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:latest
+    container_name: chatapp-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - chatapp-network
+
+  # User Service
+  user-service:
+    build: ./user-service
+    container_name: chatapp-user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - PORT=3001
+      - MONGO_URI=mongodb://mongodb:27017/chatapp-users
+      - JWT_SECRET=chatapp_jwt_secret_key_2024
+    depends_on:
+      - mongodb
+    networks:
+      - chatapp-network
+
+  # Chat Service
+  chat-service:
+    build: ./chat-service
+    container_name: chatapp-chat-service
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - MONGO_URI=mongodb://mongodb:27017/chatapp-messages
+    depends_on:
+      - mongodb
+    networks:
+      - chatapp-network
+
+  # Room Service
+  room-service:
+    build: ./room-service
+    container_name: chatapp-room-service
+    ports:
+      - "3003:3003"
+    environment:
+      - PORT=3003
+      - MONGO_URI=mongodb://mongodb:27017/chatapp-rooms
+    depends_on:
+      - mongodb
+    networks:
+      - chatapp-network
+
+  # Notification Service
+  notification-service:
+    build: ./notification-service
+    container_name: chatapp-notification-service
+    ports:
+      - "3004:3004"
+    environment:
+      - PORT=3004
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_USER=your_email@gmail.com
+      - SMTP_PASS=your_app_password
+      - FROM_EMAIL=your_email@gmail.com
+      - FROM_NAME=ChatApp
+    networks:
+      - chatapp-network
+
+  # API Gateway
+  api-gateway:
+    build: ./api-gateway
+    container_name: chatapp-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - USER_SERVICE_URL=http://user-service:3001
+      - CHAT_SERVICE_URL=http://chat-service:3002
+      - ROOM_SERVICE_URL=http://room-service:3003
+      - NOTIFICATION_SERVICE_URL=http://notification-service:3004
+    depends_on:
+      - user-service
+      - chat-service
+      - room-service
+      - notification-service
+    networks:
+      - chatapp-network
+
+  # Frontend
+  frontend:
+    build: ./frontend
+    container_name: chatapp-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - api-gateway
+    networks:
+      - chatapp-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  chatapp-network:
+    driver: bridge
