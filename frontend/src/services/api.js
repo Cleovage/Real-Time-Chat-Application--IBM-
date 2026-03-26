@@ -1,6 +1,8 @@
 import axios from "axios";
 
-const API_URL = "http://localhost:3000";
+// Use the same host the page was loaded from so the app works
+// both locally (localhost) and from other devices on the same WiFi.
+const API_URL = `http://${window.location.hostname}:3000`;
 
 const api = axios.create({
   baseURL: API_URL,

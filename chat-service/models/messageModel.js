@@ -24,6 +24,13 @@ const messageSchema = new mongoose.Schema(
       enum: ["text", "image", "system"],
       default: "text",
     },
+    reactions: [
+      {
+        emoji: { type: String, required: true },
+        userId: { type: String, required: true },
+        username: { type: String, required: true },
+      },
+    ],
     readBy: [
       {
         type: String,

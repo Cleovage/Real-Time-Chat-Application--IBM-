@@ -16,22 +16,17 @@ connectDB();
 const app = express();
 const server = http.createServer(app);
 
-// Initialize Socket.IO
+// Initialize Socket.IO — allow any origin so LAN / WiFi devices can connect
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://localhost:3000"],
+    origin: "*",
     methods: ["GET", "POST"],
-    credentials: true,
+    credentials: false,
   },
 });
 
 // Middleware
-app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:3000"],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+app.use(cors());                        // wide-open CORS for REST too
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -48,6 +43,6 @@ socketHandler(io);
 
 const PORT = process.env.PORT || 3002;
 
-server.listen(PORT, () => {
-  console.log(`Chat Service running on port ${PORT}`);
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Chat Service running on port ${PORT} (all interfaces)`);
 });

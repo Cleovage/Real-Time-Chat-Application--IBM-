@@ -4,7 +4,8 @@ import { io } from "socket.io-client";
 import { getMessages, getRoomById, joinRoom } from "../services/api";
 import ChatBox from "../components/ChatBox";
 
-const SOCKET_URL = "http://localhost:3002";
+// Dynamically resolve the socket server so it works over WiFi too
+const SOCKET_URL = `http://${window.location.hostname}:3002`;
 
 function Chat({ user }) {
   const { roomId } = useParams();
@@ -13,6 +14,7 @@ function Chat({ user }) {
   const [messages, setMessages] = useState([]);
   const [typingUser, setTypingUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [onlineUsers, setOnlineUsers] = useState([]);
   const socketRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
@@ -59,12 +61,27 @@ function Chat({ user }) {
       socketRef.current.emit("joinRoom", {
         roomId,
         username: user.username,
+        userId: user._id,
       });
     });
 
     // Listen for new messages
     socketRef.current.on("message", (message) => {
       setMessages((prev) => [...prev, message]);
+    });
+
+    // Listen for online users updates
+    socketRef.current.on("onlineUsers", (users) => {
+      setOnlineUsers(users);
+    });
+
+    // Listen for reaction updates
+    socketRef.current.on("messageReaction", ({ messageId, reactions }) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          (msg._id === messageId) ? { ...msg, reactions } : msg
+        )
+      );
     });
 
     // Listen for typing indicators
@@ -128,6 +145,18 @@ function Chat({ user }) {
     }
   };
 
+  const handleReaction = (messageId, emoji) => {
+    if (socketRef.current) {
+      socketRef.current.emit("addReaction", {
+        messageId,
+        emoji,
+        userId: user._id,
+        username: user.username,
+        roomId,
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="chat-page">
@@ -147,17 +176,23 @@ function Chat({ user }) {
           <p className="room-info">{room?.description || "No description"}</p>
         </div>
         <div className="members-list">
-          <div style={{ padding: "8px 12px", fontSize: "0.75rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "1px", fontWeight: 600 }}>
-            Members — {room?.members?.length || 0}
+          <div className="members-label">
+            Online — {onlineUsers.length}
           </div>
-          {room?.members?.map((member, index) => (
-            <div key={index} className="member-item">
-              <div className="member-avatar">
-                {member.username?.charAt(0).toUpperCase()}
+          {room?.members?.map((member, index) => {
+            const isOnline = onlineUsers.some(
+              (u) => u.username === member.username
+            );
+            return (
+              <div key={index} className="member-item">
+                <div className={`member-avatar ${isOnline ? "online" : ""}`}>
+                  {member.username?.charAt(0).toUpperCase()}
+                  {isOnline && <span className="online-dot" />}
+                </div>
+                <span className="member-name">{member.username}</span>
               </div>
-              <span className="member-name">{member.username}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
@@ -168,6 +203,7 @@ function Chat({ user }) {
         onSendMessage={handleSendMessage}
         onTyping={handleTyping}
         typingUser={typingUser}
+        onReaction={handleReaction}
       />
     </div>
   );
