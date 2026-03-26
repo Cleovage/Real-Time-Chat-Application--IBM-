@@ -1,7 +1,16 @@
 import { useNavigate } from "react-router-dom";
 
-function RoomCard({ room }) {
+function RoomCard({ room, user, onDeleteRoom }) {
   const navigate = useNavigate();
+
+  const isCreator = user && room.creator === user._id;
+
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (onDeleteRoom) {
+      onDeleteRoom(room);
+    }
+  };
 
   return (
     <div
@@ -11,9 +20,20 @@ function RoomCard({ room }) {
     >
       <div className="room-card-header">
         <h3>{room.name}</h3>
-        <span className={`room-badge ${room.isPrivate ? "private" : "public"}`}>
-          {room.isPrivate ? "Private" : "Public"}
-        </span>
+        <div className="room-card-badges">
+          <span className={`room-badge ${room.isPrivate ? "private" : "public"}`}>
+            {room.isPrivate ? "Private" : "Public"}
+          </span>
+          {isCreator && (
+            <button
+              className="room-delete-btn"
+              onClick={handleDelete}
+              title="Delete room"
+            >
+              🗑️
+            </button>
+          )}
+        </div>
       </div>
       <p>{room.description || "No description"}</p>
       <div className="room-card-footer">

@@ -31,7 +31,7 @@ const getMessages = async (req, res) => {
 // @route   POST /api/messages
 const sendMessage = async (req, res) => {
   try {
-    const { sender, senderName, room, content, type } = req.body;
+    const { sender, senderName, room, content, type, replyTo } = req.body;
 
     const message = await Message.create({
       sender,
@@ -39,9 +39,76 @@ const sendMessage = async (req, res) => {
       room,
       content,
       type: type || "text",
+      replyTo: replyTo || {},
     });
 
     res.status(201).json(message);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Edit a message (sender only)
+// @route   PUT /api/messages/:id
+const editMessage = async (req, res) => {
+  try {
+    const { sender, content } = req.body;
+    const message = await Message.findById(req.params.id);
+
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.sender !== sender) {
+      return res.status(403).json({ message: "You can only edit your own messages" });
+    }
+
+    if (message.isDeleted) {
+      return res.status(400).json({ message: "Cannot edit a deleted message" });
+    }
+
+    message.content = content;
+    message.isEdited = true;
+    await message.save();
+
+    res.json(message);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Unsend a message (sender only, soft-delete)
+// @route   PATCH /api/messages/:id/unsend
+const unsendMessage = async (req, res) => {
+  try {
+    const { sender } = req.body;
+    const message = await Message.findById(req.params.id);
+
+    if (!message) {
+      return res.status(404).json({ message: "Message not found" });
+    }
+
+    if (message.sender !== sender) {
+      return res.status(403).json({ message: "You can only unsend your own messages" });
+    }
+
+    message.isDeleted = true;
+    message.content = "";
+    await message.save();
+
+    res.json(message);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Clear all messages in a room
+// @route   DELETE /api/messages/room/:roomId
+const clearChat = async (req, res) => {
+  try {
+    const { roomId } = req.params;
+    await Message.deleteMany({ room: roomId });
+    res.json({ message: "All messages cleared" });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -67,5 +134,8 @@ const deleteMessage = async (req, res) => {
 module.exports = {
   getMessages,
   sendMessage,
+  editMessage,
+  unsendMessage,
+  clearChat,
   deleteMessage,
 };

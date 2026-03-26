@@ -73,7 +73,7 @@ const updateRoom = async (req, res) => {
   }
 };
 
-// @desc    Delete room
+// @desc    Delete room (creator only)
 // @route   DELETE /api/rooms/:id
 const deleteRoom = async (req, res) => {
   try {
@@ -81,6 +81,12 @@ const deleteRoom = async (req, res) => {
 
     if (!room) {
       return res.status(404).json({ message: "Room not found" });
+    }
+
+    // Creator-only authorization
+    const userId = req.body.userId || req.query.userId;
+    if (room.creator !== userId) {
+      return res.status(403).json({ message: "Only the room creator can delete this room" });
     }
 
     await room.deleteOne();

@@ -77,7 +77,7 @@ const socketHandler = (io) => {
     // ---- Send a message ----
     socket.on("sendMessage", async (data) => {
       try {
-        const { sender, senderName, room, content, type } = data;
+        const { sender, senderName, room, content, type, replyTo } = data;
 
         const message = await Message.create({
           sender,
@@ -85,6 +85,7 @@ const socketHandler = (io) => {
           room,
           content,
           type: type || "text",
+          replyTo: replyTo || {},
         });
 
         // Broadcast message to everyone in the room
@@ -93,6 +94,63 @@ const socketHandler = (io) => {
         console.error("Error saving message:", error);
         socket.emit("error", { message: "Failed to send message" });
       }
+    });
+
+    // ---- Edit a message ----
+    socket.on("editMessage", async ({ messageId, content, sender, roomId }) => {
+      try {
+        const message = await Message.findById(messageId);
+        if (!message) return;
+        if (message.sender !== sender) return;
+        if (message.isDeleted) return;
+
+        message.content = content;
+        message.isEdited = true;
+        await message.save();
+
+        // Broadcast to everyone in the room
+        io.to(roomId).emit("messageEdited", {
+          messageId: message._id,
+          content: message.content,
+          isEdited: true,
+        });
+      } catch (error) {
+        console.error("Error editing message:", error);
+      }
+    });
+
+    // ---- Unsend (soft-delete) a message ----
+    socket.on("unsendMessage", async ({ messageId, sender, roomId }) => {
+      try {
+        const message = await Message.findById(messageId);
+        if (!message) return;
+        if (message.sender !== sender) return;
+
+        message.isDeleted = true;
+        message.content = "";
+        await message.save();
+
+        io.to(roomId).emit("messageUnsent", {
+          messageId: message._id,
+        });
+      } catch (error) {
+        console.error("Error unsending message:", error);
+      }
+    });
+
+    // ---- Clear all chat messages in a room ----
+    socket.on("clearChat", async ({ roomId }) => {
+      try {
+        await Message.deleteMany({ room: roomId });
+        io.to(roomId).emit("chatCleared", { roomId });
+      } catch (error) {
+        console.error("Error clearing chat:", error);
+      }
+    });
+
+    // ---- Room deleted notification ----
+    socket.on("deleteRoom", ({ roomId }) => {
+      io.to(roomId).emit("roomDeleted", { roomId });
     });
 
     // ---- Message reactions ----

@@ -24,6 +24,19 @@ const messageSchema = new mongoose.Schema(
       enum: ["text", "image", "system"],
       default: "text",
     },
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
+    replyTo: {
+      messageId: { type: String, default: null },
+      senderName: { type: String, default: null },
+      content: { type: String, default: null },
+    },
     reactions: [
       {
         emoji: { type: String, required: true },
